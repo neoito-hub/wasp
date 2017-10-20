@@ -43,13 +43,13 @@ checkForNet() {
 
 doDebs() {
 	# make dir if not found
-	if [ ! -d $DEBS_FOLDER ]
+	if [ ! -d $DEB_FOLDER ]
 	then
 		echo "making a directory for deb downloads"
-		mkdir $DEBS_FOLDER
+		mkdir $DEB_FOLDER
 	fi
 
-	cd $DEBS_FOLDER
+	cd $DEB_FOLDER
 	echo "-> downloading vscode"
 	wget "https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb"
 	echo "-> downloading google-chrome"
@@ -58,7 +58,7 @@ doDebs() {
 	wget "https://downloads.slack-edge.com/linux_releases/slack-desktop-2.8.2-amd64.deb"
 	cd $CURR_DIR
 
-	chown -R $NORMAL_USER:$NORMAL_USER $DEBS_FOLDER
+	chown -R $NORMAL_USER:$NORMAL_USER $DEB_FOLDER
 }
 
 installSublimeText() {
@@ -86,7 +86,7 @@ installMongoDB() {
 }
 
 installrobo3T() {
-	cd $DEBS_FOLDER
+	cd $DEB_FOLDER
 	echo "getting archive"
 	wget https://download.robomongo.org/1.1.1/linux/robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz
 	echo "extracting ...."
@@ -144,7 +144,7 @@ echo "(2 / 9) installing command-line dev-tools"
 sudo apt install git-core git vim tmux htop build-essential libssl-dev
 echo "(3 / 9) installing chrome, slack and vscode"
 doDebs
-sudo dpkg -i $DEBS_FOLDER/*.deb
+sudo dpkg -i $DEB_FOLDER/*.deb
 # cleaning up
 if [[ $? -ne 0 ]]; then
 	echo "[warning] .debs installation met errors, trying a hack to fix this ... "
