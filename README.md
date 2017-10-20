@@ -2,4 +2,4 @@
 
 This repo is the home for a set of comfy scripts, tools and whatever that would aid in smooth dev life.
 
-- `sh.sh` - **Setup Hound** is a small bash script that installs a few utilities on to a freshly installed Ubuntu system to set it up for dev work. [==HIGHLY BETA==]
+- `sh.sh` - **Setup Hound** is a small bash script that installs a few utilities on to a freshly installed Ubuntu system to set it up for dev work. [`HIGHLY BETA`]
