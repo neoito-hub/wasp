@@ -141,7 +141,7 @@ echo "connected to net [ ok ]"
 echo "(1 / 9) updating cache"
 sudo apt update
 echo "(2 / 9) installing command-line dev-tools"
-sudo apt install git-core git vim tmux htop build-essential libssl-dev
+sudo apt install git-core git vim tmux htop build-essential libssl-dev curl
 echo "(3 / 9) installing chrome, slack and vscode"
 doDebs
 sudo dpkg -i $DEB_FOLDER/*.deb
