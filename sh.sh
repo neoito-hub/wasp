@@ -148,7 +148,7 @@ sudo dpkg -i $DEB_FOLDER/*.deb
 # cleaning up
 if [[ $? -ne 0 ]]; then
 	echo "[warning] .debs installation met errors, trying a hack to fix this ... "
-    sudo apt install -f
+    sudo apt install -f -y
 fi
 echo "(4 / 9) installing nodejs"
 installNodeJS
