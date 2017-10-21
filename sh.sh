@@ -53,7 +53,7 @@ doDebs() {
 	echo "-> downloading vscode"
 	wget "https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb"
 	echo "-> downloading google-chrome"
-	wget "https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb"
+	wget "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
 	echo "-> downloading slack"
 	wget "https://downloads.slack-edge.com/linux_releases/slack-desktop-2.8.2-amd64.deb"
 	cd $CURR_DIR
@@ -105,7 +105,7 @@ installrobo3T() {
 	if [ ! -d /home/$NORMAL_USER/Programs/robo3t/backup ]
 	then
 		echo "making a directory for backup"
-		mkdir /home/$NORMAL_USER/Programs
+		mkdir /home/$NORMAL_USER/Programs/robo3t/backup
 	fi
 	mv /home/$NORMAL_USER/Programs/robo3t/lib/libstdc++* /home/$NORMAL_USER/Programs/robo3t/backup
 
