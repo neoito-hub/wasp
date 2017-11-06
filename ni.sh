@@ -48,6 +48,7 @@ setupAndroidTools() {
 
 configBashrc() {
 
+	printf "\n" >> $HOME/.bashrc
 	printf "export ANDROID_HOME=\$HOME/android\n" >> $HOME/.bashrc
 	printf "export PATH=\${PATH}:\$ANDROID_HOME/tools\n" >> $HOME/.bashrc
 	printf "export PATH=\${PATH}:\$ANDROID_HOME/tools/bin\n" >> $HOME/.bashrc
