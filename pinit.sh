@@ -6,13 +6,21 @@
 # 1. .gitignore file
 # 2. pulls in config for appropriate project type
 
-
+DOTFILE_REPO="https://raw.githubusercontent.com/neoito-hub/dotfiles/master"
 CURR_DIR="$PWD"
 
 printHelp() {
   echo "$0: missing operand
 Invoke as :  \$ $0 <project_type>
 An example:  \$ $0 node"
+}
+
+downloadFileName() {
+  url="$DOTFILE_REPO/$1"
+  saveAs=$1
+  echo "fetching: $url"
+  echo "saving as $saveAs"
+  wget -O $saveAs $url
 }
 
 initNodeProject() {
@@ -28,8 +36,12 @@ initNodeProject() {
   fi
 
   echo "installing dev deps"
-  npm i --save-dev eslint eslint-config-airbnb eslint-config-prettier eslint-plugin-import eslint-plugin-jsx-a11y eslint-plugin-prettier eslint-plugin-react prettier
+  npm i --save-dev eslint eslint-config-airbnb eslint-config-prettier \
+  eslint-plugin-import eslint-plugin-jsx-a11y eslint-plugin-prettier \
+  eslint-plugin-react prettier
 
+  downloadFileName .prettierrc
+  downloadFileName .eslintrc.json
 }
 
 if [ $# -eq 0 ]
