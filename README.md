@@ -4,3 +4,4 @@ This repo is the home for a set of comfy scripts, tools and whatever that would 
 
 - :dog: `sh.sh` - **Setup Hound** is a small bash script that installs a few utilities on to a freshly installed Ubuntu system to set it up for dev work. [ :bomb: `HIGHLY BETA`]
 - :fire: `ni.sh` - **Nativescript Installer** installs nativescript for Android development on Ubuntu.
+- :fire: `pinit.sh` - **Project Initializer** sets up a project folder with needed configs.
