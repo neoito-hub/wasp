@@ -12,7 +12,7 @@ printBanner() {
 ┃┗┫┣━┫ ┃ ┃┃┏┛┣╸ ┗━┓┃  ┣┳┛┃┣━┛ ┃    ┃┃┗┫┗━┓ ┃ ┣━┫┃  ┃  ┣╸ ┣┳┛
 ╹ ╹╹ ╹ ╹ ╹┗┛ ┗━╸┗━┛┗━╸╹┗╸╹╹   ╹    ╹╹ ╹┗━┛ ╹ ╹ ╹┗━╸┗━╸┗━╸╹┗╸
 
- - This script will install nativescript on to this machine - 
+ - This script will install nativescript on to this machine -
  - Run me as a normal user and have an internet connection ready :)
 
 	"
@@ -92,7 +92,7 @@ configBashrc
 echo "(6 / 7) installing android tools - This will take some time ..."
 installAndroidTools
 echo "(7 / 7) installing Nativescript from NPM"
-installNativeScript 
+installNativeScript
 
 echo "Hey you! Run 'tns doctor' and check if you're ready to roll."
 echo "installation is all done master :)"
