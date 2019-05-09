@@ -12,7 +12,8 @@ CURR_DIR="$PWD"
 printHelp() {
   echo "$0: missing operand
 Invoke as :  \$ $0 <project_type>
-An example:  \$ $0 node"
+An example:  \$ $0 node
+Supported :   node ts"
 }
 
 downloadFileName() {
@@ -44,6 +45,24 @@ initNodeProject() {
   downloadFileName .eslintrc.json
 }
 
+initTsProject() {
+  if [ ! -f package.json ]; then
+    touch package.json
+    echo "error: no package.json. not in a ts project"
+    exit 1
+  fi
+
+  echo "installing dev deps"
+  npm i --save-dev tslint-config-airbnb
+  echo "Put this in your tslint.json file
+---------------------8<-------------8<--------------
+{
+  'extends': 'tslint-config-airbnb'
+}
+---------------------8<--------------8<--------------
+  "
+}
+
 if [ $# -eq 0 ]
   then
     printHelp
@@ -56,8 +75,12 @@ case "$1" in
 'node')  echo "Initializing node project"
     initNodeProject
     ;;
+'ts')  echo "Initializing typescript project"
+    initTsProject
+    ;;
 *) echo "Project type $1 is not configured"
    echo "File an issue at https://github.com/neoito-hub/wasp"
+   exit 1
    ;;
 esac
 
