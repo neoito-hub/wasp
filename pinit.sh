@@ -64,25 +64,24 @@ initTsProject() {
 }
 
 if [ $# -eq 0 ]
-  then
-    printHelp
-    exit 1
+then
+  printHelp
+  exit 1
 fi
 
 PTYPE=$1
 
 case "$1" in
-'node')  echo "Initializing node project"
+  'node')  echo "Initializing node project"
     initNodeProject
     ;;
-'ts')  echo "Initializing typescript project"
+  'ts')  echo "Initializing typescript project"
     initTsProject
     ;;
-*) echo "Project type $1 is not configured"
-   echo "File an issue at https://github.com/neoito-hub/wasp"
-   exit 1
-   ;;
+  *) echo "Project type $1 is not configured"
+    echo "File an issue at https://github.com/neoito-hub/wasp"
+    exit 1
+    ;;
 esac
 
 echo "$0 exiting ..."
-exit 0
