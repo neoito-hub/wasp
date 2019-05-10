@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+#----------------------------------------------------------------------------------
+#                !WARNING!  NOT SAFE FOR USE, YET.  !WARNING!
+#----------------------------------------------------------------------------------
+
 # -> Package selection by Paulson P.S and Abhilash Anandan
 # -> This is a shitty script, that for the time being gets shit done.
 #    there will be an update to this :)
