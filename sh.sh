@@ -21,10 +21,12 @@ USAGE(){
 
 		            Simple bash script to install packages for web dev at work.
 
-		SYNTAX:     sh.sh [OPTS] DEB_DIR
+		SYNTAX:     sh.sh [OPTS]
 
 		OPTS:       --help|-h|-?            - Displays this help information.
+		            --less-verbose|-L       - Output fewer informational tidbits.
 		            --deb-store|-D PATH     - Where the packages are to be downloaded.
+		            --yes-apt|-y            - Assume yes to APT prompts.
 
 		FILE:       The default location for DEB packages:
 
@@ -40,8 +42,12 @@ while [ "$1" ]; do
 	case "$1" in
 		--help|-h|-\?)
 			USAGE; exit 0 ;;
+		--less-verbose|-L)
+			LESS_VERBOSE="True" ;; # <-- Unset means False.
 		--deb-store|-D)
 			shift; DEB_FOLDER="$1" ;;
+		--yes-apt|-y|--yes|--assume-yes)
+			YES_APT="True" ;;
 		*)
 			XERR "$LINENO" "Incorrect argument(s) specified." ;;
 	esac
@@ -60,18 +66,23 @@ for DEP in wget apt-{get,key} service dpkg; {
 
 #-----------------------------------------------------------------------| FUNCTIONS
 
+INFO(){ [ $LESS_VERBOSE ] || printf "$1\n"; }
+
 printBanner() {
-	while read; do
-		printf "%s\n" "$REPLY"
-	done <<-EOF
-		┏━┓┏━╸╺┳╸╻ ╻┏━┓   ╻ ╻┏━┓╻ ╻┏┓╻╺┳┓
-		┗━┓┣╸  ┃ ┃ ┃┣━┛   ┣━┫┃ ┃┃ ┃┃┗┫ ┃┃
-		┗━┛┗━╸ ╹ ┗━┛╹     ╹ ╹┗━┛┗━┛╹ ╹╺┻┛
+	if ! [ $LESS_VERBOSE ]
+	then
+		while read; do
+			printf "%s\n" "$REPLY"
+		done <<-EOF
+			┏━┓┏━╸╺┳╸╻ ╻┏━┓   ╻ ╻┏━┓╻ ╻┏┓╻╺┳┓
+			┗━┓┣╸  ┃ ┃ ┃┣━┛   ┣━┫┃ ┃┃ ┃┃┗┫ ┃┃
+			┗━┛┗━╸ ╹ ┗━┛╹     ╹ ╹┗━┛┗━┛╹ ╹╺┻┛
 
-		 - This script will install a few packages needed to make your ubuntu system kickass.
-		 - Run me as root, and have an Internet connection ready. :)
+			 - This script will install packages needed to make your ubuntu system kickass.
+			 - Run me as root, and have an Internet connection ready. :)
 
-	EOF
+		EOF
+	fi
 }
 
 [ $EUID -ne 0 ] && XERR "$LINENO" "Root access is required."
@@ -81,17 +92,17 @@ checkForNet() {
 	then
 		XERR "$LINENO" "An active Internet connection is required."
 	else
-		printf "Active Internet connection established.\n"
+		INFO "Active Internet connection established."
 	fi
 }
 
 aptgetUpdate(){
-	printf "Resynchronizing package index files with their sources...\n"
+	INFO "Resynchronizing package index files with their sources..."
 	apt-get update
 }
 
 doDebs() {
-	printf "\n(3 / 9) Installing chrome, slack, and vscode...\n"
+	INFO "\n(3 / 9) Installing chrome, slack, and vscode..."
 
 	# Clean output (0 exit status, too) even if the directory already exists.
 	mkdir -vp "$DEB_FOLDER"
@@ -108,7 +119,7 @@ doDebs() {
 
 		for LINK in ${LINKS[@]}
 		{
-			printf "Downloading '%s'...\n" "${NAME%%@*}"
+			INFO "Downloading '%s'..." "${NAME%%@*}"
 			wget $WGET_OPTS "${LINK#*@}" -O "$DEB_FOLDER/${LINK##*/}"
 			chown -v "$SUDO_USER:$SUDO_USER" "$DEB_FOLDER/${LINK##*/}"
 			# Comment out the above line and uncomment the below chown
@@ -117,43 +128,51 @@ doDebs() {
 
 		#chown -vR "$SUDO_USER:$SUDO_USER" "$DEB_FOLDER"
 	else
-		XERR "$LINENO" "Directory '$DEB_FOLDER' could not be accessed."
+		XERR "$LINENO" "Directory '$DEB_FOLDER' missing or inaccessible."
 	fi
 }
 
 installSublimeText() {
-	printf "\n(5 / 9) Installing 'sublime-text'...\n"
+	INFO "\n(5 / 9) Installing 'sublime-text'..."
 
-	printf "Adding the GNU Privacy Guard key for Sublime...\n"
+	INFO "Adding the GNU Privacy Guard key for Sublime..."
 	wget $WGET_OPTS https://download.sublimetext.com/sublimehq-pub.gpg -O -\
 		| apt-key add -
 
-	apt-get $APT_OPTS install -y apt-transport-https
+	apt-get $YES_APT $APT_OPTS install apt-transport-https
 
 	LIST='/etc/apt/sources.list.d/sublime-text.list'
 	printf "deb https://download.sublimetext.com/ apt/stable/\n" > "$LIST"
 
-	printf "Installing the 'sublime-text' package...\n"
-	apt-get -y $APT_OPTS install sublime-text
+	INFO "Installing the 'sublime-text' package..."
+	apt-get $YES_APT $APT_OPTS install sublime-text
 }
 
 installNodeJS() {
-	printf "\n(4 / 9) Installing 'nodejs'...\n"
+	INFO "\n(4 / 9) Installing 'nodejs'..."
 
 	TMP_FILE='/tmp/setup_6.x'
 
-	apt-get -y $APT_OPTS install python-software-properties nodejs
+	apt-get $YES_APT $APT_OPTS install python-software-properties nodejs
 	wget -q https://deb.nodesource.com/setup_6.x -O "$TMP_FILE"
-	if bash "$TMP_FILE"
+
+	# You'll need to test these environment variables injected into the bash
+	# session called here. I'm not familiar with the script it executes. If
+	# all is however good, then the script should treat HOME and UID as those
+	# of the user who ran sudo.
+	#
+	# Whichever environment variables are needed, relating to the user you
+	# actually want it to process, can be prepended to the command (bash).
+	if HOME="/home/$SUDO_USER" UID=$SUDO_UID bash "$TMP_FILE"
 	then
-		printf "Script '$TMP_FILE' execute successfully.\n"
+		INFO "Script '$TMP_FILE' execute successfully."
 	else
 		XERR "$LINENO" "Script '$TMP_FILE' exited with a non-zero status."
 	fi
 }
 
 installMongoDB() {
-	printf "\n(6 / 9) Installing community edition of 'mongoDB'...\n"
+	INFO "\n(6 / 9) Installing community edition of 'mongoDB'..."
 
 	apt-key adv --keyserver hkp://keyserver.ubuntu.com:80\
 		--recv 0C49F3730359A14518585931BC711F9BA15703C6
@@ -163,47 +182,47 @@ installMongoDB() {
 		"$LINK" "xenial/mongodb-org/3.4" "multiverse"\
 		> /etc/apt/sources.list.d/mongodb-org-3.4.list
 
-	apt-get -y $APT_OPTS install mongodb-org
+	apt-get $YES_APT $APT_OPTS install mongodb-org
 	service mongod restart
 }
 
 installrobo3T() {
-	printf "\n(7 / 9) Installing 'robo3T'...\n"
+	INFO "\n(7 / 9) Installing 'robo3T'..."
 
 	ARCHIVE='robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz'
 	PROG_DIR="$HOME/Programs"
 
-	printf "Getting '$ARCHIVE'...\n"
+	INFO "Getting '$ARCHIVE'..."
 	wget $WGET_OPTS "https://download.robomongo.org/1.1.1/linux/$ARCHIVE"
 
-	printf "Extracting...\n"
+	INFO "Extracting..."
 	tar -C "$DEB_FOLDER" -xzvf "$ARCHIVE"
 
 	mkdir -vp "$PROG_DIR"
 	mv -v "${ARCHIVE%.tar.gz}" "$PROG_DIR/robo3t"
 
-	printf "Applying Robomongo fix...\n"
+	INFO "Applying Robomongo fix..."
 	mkdir -vp "$PROG_DIR/robo3t/backup"
 	mv -v "$PROG_DIR/robo3t/lib/libstdc++"* "$PROG_DIR/robo3t/backup"
 
-	printf "Create desktop shortcut...\n"
+	INFO "Create desktop shortcut..."
 	ln -vs "$PROG_DIR/robo3t/bin/robo3t" "$HOME/Desktop/robo3t"
 
 	chown -vR $SUDO_USER:$SUDO_USER /home/$SUDO_USER/Programs/robo3t
 }
 
 installJava() {
-	printf "\n(8 / 9) Installing 'java'...\n"
+	INFO "\n(8 / 9) Installing 'java'..."
 
-	apt-get $APT_OPTS install -y default-jre
-	apt-get $APT_OPTS install -y default-jdk
+	apt-get $YES_APT $APT_OPTS install default-jre
+	apt-get $YES_APT $APT_OPTS install default-jdk
 }
 
 installLAMP() {
-	printf "\n(9 / 9) Installing 'lamp'...\n"
+	INFO "\n(9 / 9) Installing 'lamp'..."
 
-	apt-get $APT_OPTS -y install mysql-{server,client,workbench} libmysqld-dev
-	apt-get $APT_OPTS -y install apache2 php libapache2-mod-php php-mcrypt php-mysql phpmyadmin
+	apt-get $YES_APT $APT_OPTS install mysql-{server,client,workbench} libmysqld-dev
+	apt-get $YES_APT $APT_OPTS install apache2 php libapache2-mod-php php-mcrypt php-mysql phpmyadmin
 	printf "<?php\nphpinfo();\n?>" > /var/www/html/info.php
 	# Above line will be affected by below chmod and chown; is that intended?
 
@@ -214,23 +233,23 @@ installLAMP() {
 }
 
 installDevTools(){
-	printf "\n(2 / 9) Installing command-line dev-tools...\n"
+	INFO "\n(2 / 9) Installing command-line dev-tools..."
 
-	apt-get $APT_OPTS install ${CLI_DEV_PKGS[@]}
+	apt-get $YES_APT $APT_OPTS install ${CLI_DEV_PKGS[@]}
 }
 
-installDebs(){
-	printf "\n"
+installDevTools(){
+	INFO "\n(2 / 9) installing command-line dev-tools..."
 	if ! dpkg -i "$DEB_FOLDER"/*.deb; then
 		ERR "$LINENO" "DPKG detected errors; attempting fix..."
-		if ! apt-get -y $APT_OPTS install -f
+		if ! apt-get $YES_APT $APT_OPTS install -f
 		then
 			XERR "$LINENO" "Non-zero exit status during fix attempt."
 		fi
 	fi
 }
 
-#----------------------------------------------------------------------------| MAIN
+#---------------------------------------------------------------------------| BEGIN
 
 printBanner
 checkForNet
@@ -247,6 +266,6 @@ installrobo3T
 installJava
 installLAMP
 
-echo "All done, Master. :)"
+INFO "All done, Master. :)"
 
 # end of script
