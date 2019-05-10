@@ -7,47 +7,50 @@ CURR_DIR="$PWD"
 
 # Start of functions
 printBanner() {
-	echo "
-┏┓╻┏━┓╺┳╸╻╻ ╻┏━╸┏━┓┏━╸┏━┓╻┏━┓╺┳╸   ╻┏┓╻┏━┓╺┳╸┏━┓╻  ╻  ┏━╸┏━┓
-┃┗┫┣━┫ ┃ ┃┃┏┛┣╸ ┗━┓┃  ┣┳┛┃┣━┛ ┃    ┃┃┗┫┗━┓ ┃ ┣━┫┃  ┃  ┣╸ ┣┳┛
-╹ ╹╹ ╹ ╹ ╹┗┛ ┗━╸┗━┛┗━╸╹┗╸╹╹   ╹    ╹╹ ╹┗━┛ ╹ ╹ ╹┗━╸┗━╸┗━╸╹┗╸
+	while read; do
+		echo "$REPLY"
+	done <<-EOF
+		┏┓╻┏━┓╺┳╸╻╻ ╻┏━╸┏━┓┏━╸┏━┓╻┏━┓╺┳╸   ╻┏┓╻┏━┓╺┳╸┏━┓╻  ╻  ┏━╸┏━┓
+		┃┗┫┣━┫ ┃ ┃┃┏┛┣╸ ┗━┓┃  ┣┳┛┃┣━┛ ┃    ┃┃┗┫┗━┓ ┃ ┣━┫┃  ┃  ┣╸ ┣┳┛
+		╹ ╹╹ ╹ ╹ ╹┗┛ ┗━╸┗━┛┗━╸╹┗╸╹╹   ╹    ╹╹ ╹┗━┛ ╹ ╹ ╹┗━╸┗━╸┗━╸╹┗╸
 
- - This script will install nativescript on to this machine -
- - Run me as a normal user and have an internet connection ready :)
+		 - This script will install nativescript on to this machine -
+		 - Run me as a normal user and have an internet connection ready :)
 
-	"
+	EOF
 }
 
 checkForNet() {
 	wget -q --tries=10 --timeout=20 --spider https://www.google.co.in/
-	if [[ $? -ne 0 ]]; then
-	    echo "Error: No internet"
-	    exit
+	if [ $? -ne 0 ]; then
+		echo "Error: No internet" 1>&2
+		exit 1
 	fi
 }
 
 setupAndroidTools() {
-	cd $HOME/Downloads/
-	wget https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip
+	wget --quiet --show-progress\
+		'https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip'\
+		-O "$HOME/Downloads/sdk-tools-linux-3859397.zip"
+
+	ANDROID="$HOME/android"
 
 	# make dir if not found
-	if [ ! -d $HOME/android ]
-	then
-		echo "making a directory for android sdk tools"
-		mkdir $HOME/android
+	if [ ! -d "$ANDROID" ]; then
+		echo "Making a directory for Android sdk tools..."
+		mkdir "$ANDROID"
 	fi
 
-	cp sdk-tools-linux-3859397.zip $HOME/android
-	cd $HOME/android
+	cp sdk-tools-linux-3859397.zip "$ANDROID"
+	cd "$ANDROID"
 	unzip sdk-tools-linux-3859397.zip
 
 	cd $CURR_DIR
 
-	sudo chown $USER:$USER -R $HOME/android
+	sudo chown $USER:$USER -R "$ANDROID"
 }
 
 configBashrc() {
-
 	printf "\n" >> $HOME/.bashrc
 	printf "export ANDROID_HOME=\$HOME/android\n" >> $HOME/.bashrc
 	printf "export PATH=\${PATH}:\$ANDROID_HOME/tools\n" >> $HOME/.bashrc
@@ -56,20 +59,21 @@ configBashrc() {
 
 	# reloading bashrc
 	source $HOME/.bashrc
-
 }
 
 installAndroidTools() {
-	sudo $HOME/android/tools/bin/sdkmanager "tools" "platform-tools" "platforms;android-25" "build-tools;25.0.2" "extras;android;m2repository" "extras;google;m2repository"
-	echo "installed android tools"
+	sudo "$ANDROID/tools/bin/sdkmanager"\
+		"tools" "platform-tools" "platforms;android-25"\
+		"build-tools;25.0.2" "extras;android;m2repository"\
+		"extras;google;m2repository"
+
+	echo "Installed Android tools."
 }
 
 installNativeScript() {
-	sudo npm install -g nativescript
-	# error ?
-	if [[ $? -ne 0 ]]; then
-		echo "[warning] some erros creeped in. Applying a fix ... "
-	    sudo npm install -g --unsafe-perm nativescript
+	if ! sudo npm install -g nativescript; then
+		echo "[WARNING] Some erros creeped in. Applying a fix..." 1>&2
+		sudo npm install -g --unsafe-perm nativescript
 	fi
 }
 
@@ -78,22 +82,22 @@ installNativeScript() {
 # start of script
 printBanner
 checkForNet
-echo "connected to net [ ok ]"
-echo "(1 / 7) updating cache"
+echo "Internet connection established."
+echo "(1 / 7) Updating cache..."
 sudo apt update
-echo "(2 / 7) installing runtime libraries"
+echo "(2 / 7) Installing runtime libraries..."
 sudo apt-get install -y lib32z1 lib32ncurses5 libbz2-1.0:i386 libstdc++6:i386
-echo "(3 / 7) installing g++"
+echo "(3 / 7) Installing 'g++'..."
 sudo apt-get install -y g++
-echo "(4 / 7) downloading android tools"
+echo "(4 / 7) Downloading Android tools..."
 setupAndroidTools
-echo "(5 / 7) appending android vars to .bashrc"
+echo "(5 / 7) Appending Android vars to '.bashrc'..."
 configBashrc
-echo "(6 / 7) installing android tools - This will take some time ..."
+echo "(6 / 7) Installing Android tools; this will take some time..."
 installAndroidTools
-echo "(7 / 7) installing Nativescript from NPM"
+echo "(7 / 7) Installing Nativescript from NPM..."
 installNativeScript
 
 echo "Hey you! Run 'tns doctor' and check if you're ready to roll."
-echo "installation is all done master :)"
+echo "Installation is all done, Master. :)"
 # end of script
