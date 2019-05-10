@@ -11,33 +11,37 @@
 NORMAL_USER="user"
 DEB_FOLDER="./debs"
 CURR_DIR="$PWD"
+APT_OPTS='-q -o Dpkg::Progress=true -o Dpkg::Progress-Fancy=true'
 
 # Start of functions
 printBanner() {
-	echo "
-┏━┓┏━╸╺┳╸╻ ╻┏━┓   ╻ ╻┏━┓╻ ╻┏┓╻╺┳┓
-┗━┓┣╸  ┃ ┃ ┃┣━┛   ┣━┫┃ ┃┃ ┃┃┗┫ ┃┃
-┗━┛┗━╸ ╹ ┗━┛╹     ╹ ╹┗━┛┗━┛╹ ╹╺┻┛
+	while read; do
+		echo "$REPLY"
+	done <<-EOF
+		┏━┓┏━╸╺┳╸╻ ╻┏━┓   ╻ ╻┏━┓╻ ╻┏┓╻╺┳┓
+		┗━┓┣╸  ┃ ┃ ┃┣━┛   ┣━┫┃ ┃┃ ┃┃┗┫ ┃┃
+		┗━┛┗━╸ ╹ ┗━┛╹     ╹ ╹┗━┛┗━┛╹ ╹╺┻┛
 
- - This script will install a few packages needed to make your ubuntu system kickass - 
- - Run me as root and have an internet connection ready :)
+		 - This script will install a few packages needed to make your ubuntu system kickass.
+		 - Run me as root, and have an Internet connection ready. :)
 
-	"
+	EOF
 }
 
 checkForRoot() {
 	if [ "$EUID" -ne 0 ]
-  	then 
-  		echo "Error: Please run the script as root"
-  		exit
+  	then
+  		echo "Error: Please run the script as root" 1>&2
+  		exit 1
 	fi
 }
 
 checkForNet() {
-	wget -q --tries=10 --timeout=20 --spider https://www.google.co.in/
-	if [[ $? -ne 0 ]]; then
-	    echo "Error: No internet"
-	    exit
+
+	if ! wget -q --tries=10 --timeout=20 --spider https://www.google.co.in/
+	then
+	    echo "Error: No internet" 1>&2
+	    exit 1
 	fi
 }
 
@@ -45,51 +49,60 @@ doDebs() {
 	# make dir if not found
 	if [ ! -d $DEB_FOLDER ]
 	then
-		echo "making a directory for deb downloads"
-		mkdir $DEB_FOLDER
+		echo "Making a directory for deb downloads..."
+		mkdir "$DEB_FOLDER"
 	fi
 
-	cd $DEB_FOLDER
-	echo "-> downloading vscode"
-	wget "https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb"
-	echo "-> downloading google-chrome"
-	wget "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
-	echo "-> downloading slack"
-	wget "https://downloads.slack-edge.com/linux_releases/slack-desktop-2.8.2-amd64.deb"
-	cd $CURR_DIR
+	LINKS=(
+		'vscode@https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb'
+		'google-chrome@https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb'
+		'slack@https://downloads.slack-edge.com/linux_releases/slack-desktop-2.8.2-amd64.deb'
+	)
 
-	chown -R $NORMAL_USER:$NORMAL_USER $DEB_FOLDER
+	for LINK in @LINKS
+	{ 
+		echo "Downloading ${NAME%%@*}..."
+		wget -q --show-progress "${LINK#*@}" -O "$DEB_FOLDER/${LINK##*/}"
+		#chown "$NORMAL_USER:$NORMAL_USER" "$DEB_FOLDER/${LINK##*/}"
+	}
+
+	chown -R "$NORMAL_USER:$NORMAL_USER" "$DEB_FOLDER"
 }
 
 installSublimeText() {
-	echo "---- adding sublime public key"
+	echo "Adding Sublime public key..."
 	wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | sudo apt-key add -
-	sudo apt-get install -y apt-transport-https
-	echo "deb https://download.sublimetext.com/ apt/stable/" | sudo tee /etc/apt/sources.list.d/sublime-text.list
-	echo "---- updating repos"
-	sudo apt-get update
-	sudo apt-get install -y sublime-text
+	sudo apt-get $APT_OPTS install -y apt-transport-https
+
+	echo "deb https://download.sublimetext.com/ apt/stable/"\
+		| sudo tee /etc/apt/sources.list.d/sublime-text.list
+
+	echo "Updating repositories..."
+	sudo apt-get $APT_OPTS update
+	sudo apt-get $APT_OPTS install -y sublime-text
 }
 
 installNodeJS() {
-	sudo apt-get install -y python-software-properties
+	sudo apt-get $APT_OPTS install -y python-software-properties nodejs
 	curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
-	sudo apt-get install -y nodejs
 }
 
 installMongoDB() {
 	sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
-	echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
+
+	echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse"\
+		| sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
+
 	sudo apt-get update
-	sudo apt-get install -y mongodb-org
+	sudo apt-get $APT_OPTS install -y mongodb-org
 	sudo service mongod restart
 }
 
 installrobo3T() {
 	cd $DEB_FOLDER
-	echo "getting archive"
+	echo "Getting archive..."
 	wget https://download.robomongo.org/1.1.1/linux/robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz
-	echo "extracting ...."
+	echo "Extracting...."
 	tar -xzvf robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz
 
 	# make dir if not found
@@ -117,16 +130,16 @@ installrobo3T() {
 }
 
 installJava() {
-	sudo apt-get install -y default-jre
-	sudo apt-get install -y default-jdk
+	sudo apt-get $APT_OPTS install -y default-jre
+	sudo apt-get $APT_OPTS install -y default-jdk
 }
 
 installLAMP() {
-	sudo apt-get -y install mysql-server mysql-client mysql-workbench libmysqld-dev;
-    sudo apt-get -y install apache2 php libapache2-mod-php php-mcrypt php-mysql phpmyadmin;
-    sudo chmod 755 -R /var/www/;
-    sudo printf "<?php\nphpinfo();\n?>" > /var/www/html/info.php;
-    sudo service apache2 restart;
+	sudo apt-get $APT_OPTS -y install mysql-{server,client,workbench} libmysqld-dev
+	sudo apt-get $APT_OPTS -y install apache2 php libapache2-mod-php php-mcrypt php-mysql phpmyadmin
+	sudo chmod 755 -R /var/www/
+	sudo printf "<?php\nphpinfo();\n?>" > /var/www/html/info.php
+	sudo service apache2 restart
 }
 # End of functions
 
