@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 
-# Synopsis : A simple bash script to install packages for web dev at work
+# Synopsis: A simple bash script to install packages for web dev at work.
 
 # -> Package selection by Paulson P.S and Abhilash Anandan
 # -> This is a shitty script, that for the time being gets shit done.
-#	 there will be an update to this :)
-
+#    there will be an update to this :)
 
 # config parameters
 NORMAL_USER="user"
 DEB_FOLDER="./debs"
 CURR_DIR="$PWD"
 APT_OPTS='-q -o Dpkg::Progress=true -o Dpkg::Progress-Fancy=true'
+WGET_OPTS='-q --show-progress'
+
+XERR(){ printf "[L%0.4d] ERROR: %s\n" "$1" "$2" 1>&2; exit 1; }
+ERR(){ printf "[L%0.4d] ERROR: %s\n" "$1" "$2" 1>&2; }
 
 # Start of functions
 printBanner() {
@@ -28,20 +31,14 @@ printBanner() {
 	EOF
 }
 
-checkForRoot() {
-	if [ "$EUID" -ne 0 ]
-  	then
-  		echo "Error: Please run the script as root" 1>&2
-  		exit 1
-	fi
-}
+# Checking for root access is pointless here, since 'sudo' is used in-script.
+[ $EUID -ne 0 ] && XERR "$LINENO" "Root access is required."
 
 checkForNet() {
 
 	if ! wget -q --tries=10 --timeout=20 --spider https://www.google.co.in/
 	then
-	    echo "Error: No internet" 1>&2
-	    exit 1
+		XERR "$LINENO" "An active Internet connection is required."
 	fi
 }
 
@@ -54,16 +51,21 @@ doDebs() {
 	fi
 
 	LINKS=(
+		# This is a key=value system, where '@' (least likely to be in the
+		# URL itself) is the '=' substitute. Remember to single-quote to
+		# protect from shell interpretation.
 		'vscode@https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb'
 		'google-chrome@https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb'
 		'slack@https://downloads.slack-edge.com/linux_releases/slack-desktop-2.8.2-amd64.deb'
 	)
 
-	for LINK in @LINKS
+	for LINK in ${LINKS[@]}
 	{ 
 		echo "Downloading ${NAME%%@*}..."
-		wget -q --show-progress "${LINK#*@}" -O "$DEB_FOLDER/${LINK##*/}"
+		wget $WGET_OPTSs "${LINK#*@}" -O "$DEB_FOLDER/${LINK##*/}"
 		#chown "$NORMAL_USER:$NORMAL_USER" "$DEB_FOLDER/${LINK##*/}"
+		# Uncomment the above line and comment out the below chown line, -
+		# if you would prefer only to chown the downloaded files.
 	}
 
 	chown -R "$NORMAL_USER:$NORMAL_USER" "$DEB_FOLDER"
@@ -71,7 +73,9 @@ doDebs() {
 
 installSublimeText() {
 	echo "Adding Sublime public key..."
-	wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | sudo apt-key add -
+	wget $WGET_OPTS https://download.sublimetext.com/sublimehq-pub.gpg -O -\
+		| sudo apt-key add -
+
 	sudo apt-get $APT_OPTS install -y apt-transport-https
 
 	echo "deb https://download.sublimetext.com/ apt/stable/"\
@@ -88,7 +92,8 @@ installNodeJS() {
 }
 
 installMongoDB() {
-	sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
+	sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80\
+		--recv 0C49F3730359A14518585931BC711F9BA15703C6
 
 	echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse"\
 		| sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
@@ -99,9 +104,11 @@ installMongoDB() {
 }
 
 installrobo3T() {
+	ARCHIVE='robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz'
+
 	cd $DEB_FOLDER
-	echo "Getting archive..."
-	wget https://download.robomongo.org/1.1.1/linux/robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz
+	echo "Getting '$ARCHIVE'..."
+	wget $WGET_OPTS 'https://download.robomongo.org/1.1.1/linux/'
 	echo "Extracting...."
 	tar -xzvf robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz
 
@@ -157,12 +164,13 @@ echo "(2 / 9) installing command-line dev-tools"
 sudo apt install git-core git vim tmux htop build-essential libssl-dev curl
 echo "(3 / 9) installing chrome, slack and vscode"
 doDebs
-sudo dpkg -i $DEB_FOLDER/*.deb
+
 # cleaning up
-if [[ $? -ne 0 ]]; then
-	echo "[warning] .debs installation met errors, trying a hack to fix this ... "
-    sudo apt install -f -y
+if ! sudo dpkg -i "$DEB_FOLDER"/*.deb; then
+	echo "[WARNING] DPKG detected errors; attempting fix..."
+	sudo apt install -f -y
 fi
+
 echo "(4 / 9) installing nodejs"
 installNodeJS
 echo "(5 / 9) installing sublime-text"
