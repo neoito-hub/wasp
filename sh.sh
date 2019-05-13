@@ -1,181 +1,271 @@
 #!/usr/bin/env bash
 
-# Synopsis : A simple bash script to install packages for web dev at work
+#----------------------------------------------------------------------------------
+#                !WARNING!  NOT SAFE FOR USE, YET.  !WARNING!
+#----------------------------------------------------------------------------------
 
 # -> Package selection by Paulson P.S and Abhilash Anandan
 # -> This is a shitty script, that for the time being gets shit done.
-#	 there will be an update to this :)
+#    there will be an update to this :)
 
+XERR(){ printf "[L%0.4d] ERROR: %s\n" "$1" "$2" 1>&2; exit 1; }
+ERR(){ printf "[L%0.4d] ERROR: %s\n" "$1" "$2" 1>&2; }
 
-# config parameters
-NORMAL_USER="user"
 DEB_FOLDER="./debs"
-CURR_DIR="$PWD"
-APT_OPTS='-q -o Dpkg::Progress=true -o Dpkg::Progress-Fancy=true'
 
-# Start of functions
-printBanner() {
-	while read; do
-		echo "$REPLY"
+USAGE(){
+	while read -r; do
+		printf "%s\n" "$REPLY"
 	done <<-EOF
-		┏━┓┏━╸╺┳╸╻ ╻┏━┓   ╻ ╻┏━┓╻ ╻┏┓╻╺┳┓
-		┗━┓┣╸  ┃ ┃ ┃┣━┛   ┣━┫┃ ┃┃ ┃┃┗┫ ┃┃
-		┗━┛┗━╸ ╹ ┗━┛╹     ╹ ╹┗━┛┗━┛╹ ╹╺┻┛
+		            SH.SH
 
-		 - This script will install a few packages needed to make your ubuntu system kickass.
-		 - Run me as root, and have an Internet connection ready. :)
+		            Simple bash script to install packages for web dev at work.
 
+		SYNTAX:     sh.sh [OPTS]
+
+		OPTS:       --help|-h|-?            - Displays this help information.
+		            --less-verbose|-L       - Output fewer informational tidbits.
+		            --deb-store|-D PATH     - Where the packages are to be downloaded.
+		            --yes-apt|-y            - Assume yes to APT prompts.
+
+		FILE:       The default location for DEB packages:
+
+		              $DEB_FOLDER
 	EOF
 }
 
-checkForRoot() {
-	if [ "$EUID" -ne 0 ]
-  	then
-  		echo "Error: Please run the script as root" 1>&2
-  		exit 1
+CLI_DEV_PKGS=(git-core git vim tmux htop build-essential libssl-dev curl)
+APT_OPTS='-q -o Dpkg::Progress=true -o Dpkg::Progress-Fancy=true'
+WGET_OPTS='-q --show-progress'
+
+while [ "$1" ]; do
+	case "$1" in
+		--help|-h|-\?)
+			USAGE; exit 0 ;;
+		--less-verbose|-L)
+			LESS_VERBOSE="True" ;; # <-- Unset means False.
+		--deb-store|-D)
+			shift; DEB_FOLDER="$1" ;;
+		--yes-apt|-y|--yes|--assume-yes)
+			YES_APT="True" ;;
+		*)
+			XERR "$LINENO" "Incorrect argument(s) specified." ;;
+	esac
+	shift
+done
+
+declare -i DEPCOUNT=0
+for DEP in wget apt-{get,key} service dpkg; {
+	if ! type -fP "$DEP" > /dev/null; then
+		ERR "$LINENO" "Dependency '$DEP' not met."
+		DEPCOUNT+=1
 	fi
 }
 
-checkForNet() {
+[ $DEPCOUNT -eq 0 ] || exit 1
 
+#-----------------------------------------------------------------------| FUNCTIONS
+
+INFO(){ [ $LESS_VERBOSE ] || printf "$1\n"; }
+
+printBanner() {
+	if ! [ $LESS_VERBOSE ]
+	then
+		while read; do
+			printf "%s\n" "$REPLY"
+		done <<-EOF
+			┏━┓┏━╸╺┳╸╻ ╻┏━┓   ╻ ╻┏━┓╻ ╻┏┓╻╺┳┓
+			┗━┓┣╸  ┃ ┃ ┃┣━┛   ┣━┫┃ ┃┃ ┃┃┗┫ ┃┃
+			┗━┛┗━╸ ╹ ┗━┛╹     ╹ ╹┗━┛┗━┛╹ ╹╺┻┛
+
+			 - This script will install packages needed to make your ubuntu system kickass.
+			 - Run me as root, and have an Internet connection ready. :)
+
+		EOF
+	fi
+}
+
+[ $EUID -ne 0 ] && XERR "$LINENO" "Root access is required."
+
+checkForNet() {
 	if ! wget -q --tries=10 --timeout=20 --spider https://www.google.co.in/
 	then
-	    echo "Error: No internet" 1>&2
-	    exit 1
+		XERR "$LINENO" "An active Internet connection is required."
+	else
+		INFO "Active Internet connection established."
 	fi
+}
+
+aptgetUpdate(){
+	INFO "Resynchronizing package index files with their sources..."
+	apt-get update
 }
 
 doDebs() {
-	# make dir if not found
-	if [ ! -d $DEB_FOLDER ]
+	INFO "\n(3 / 9) Installing chrome, slack, and vscode..."
+
+	# Clean output (0 exit status, too) even if the directory already exists.
+	mkdir -vp "$DEB_FOLDER"
+
+	# Now double-check the directory was created properly.
+	if [ -d "$DEB_FOLDER" ]
 	then
-		echo "Making a directory for deb downloads..."
-		mkdir "$DEB_FOLDER"
+		# This array variable is a key=value system for the below for loop.
+		LINKS=(
+			'vscode@https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb'
+			'google-chrome@https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb'
+			'slack@https://downloads.slack-edge.com/linux_releases/slack-desktop-2.8.2-amd64.deb'
+		)
+
+		for LINK in ${LINKS[@]}
+		{
+			INFO "Downloading '%s'..." "${NAME%%@*}"
+			wget $WGET_OPTS "${LINK#*@}" -O "$DEB_FOLDER/${LINK##*/}"
+			chown -v "$SUDO_USER:$SUDO_USER" "$DEB_FOLDER/${LINK##*/}"
+			# Comment out the above line and uncomment the below chown
+			# line, if you want to chown it all; might be pointless.
+		}
+
+		#chown -vR "$SUDO_USER:$SUDO_USER" "$DEB_FOLDER"
+	else
+		XERR "$LINENO" "Directory '$DEB_FOLDER' missing or inaccessible."
 	fi
-
-	LINKS=(
-		'vscode@https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb'
-		'google-chrome@https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb'
-		'slack@https://downloads.slack-edge.com/linux_releases/slack-desktop-2.8.2-amd64.deb'
-	)
-
-	for LINK in @LINKS
-	{ 
-		echo "Downloading ${NAME%%@*}..."
-		wget -q --show-progress "${LINK#*@}" -O "$DEB_FOLDER/${LINK##*/}"
-		#chown "$NORMAL_USER:$NORMAL_USER" "$DEB_FOLDER/${LINK##*/}"
-	}
-
-	chown -R "$NORMAL_USER:$NORMAL_USER" "$DEB_FOLDER"
 }
 
 installSublimeText() {
-	echo "Adding Sublime public key..."
-	wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | sudo apt-key add -
-	sudo apt-get $APT_OPTS install -y apt-transport-https
+	INFO "\n(5 / 9) Installing 'sublime-text'..."
 
-	echo "deb https://download.sublimetext.com/ apt/stable/"\
-		| sudo tee /etc/apt/sources.list.d/sublime-text.list
+	INFO "Adding the GNU Privacy Guard key for Sublime..."
+	wget $WGET_OPTS https://download.sublimetext.com/sublimehq-pub.gpg -O -\
+		| apt-key add -
 
-	echo "Updating repositories..."
-	sudo apt-get $APT_OPTS update
-	sudo apt-get $APT_OPTS install -y sublime-text
+	apt-get $YES_APT $APT_OPTS install apt-transport-https
+
+	LIST='/etc/apt/sources.list.d/sublime-text.list'
+	printf "deb https://download.sublimetext.com/ apt/stable/\n" > "$LIST"
+
+	INFO "Installing the 'sublime-text' package..."
+	apt-get $YES_APT $APT_OPTS install sublime-text
 }
 
 installNodeJS() {
-	sudo apt-get $APT_OPTS install -y python-software-properties nodejs
-	curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+	INFO "\n(4 / 9) Installing 'nodejs'..."
+
+	TMP_FILE='/tmp/setup_6.x'
+
+	apt-get $YES_APT $APT_OPTS install python-software-properties nodejs
+	wget -q https://deb.nodesource.com/setup_6.x -O "$TMP_FILE"
+
+	# You'll need to test these environment variables injected into the bash
+	# session called here. I'm not familiar with the script it executes. If
+	# all is however good, then the script should treat HOME and UID as those
+	# of the user who ran sudo.
+	#
+	# Whichever environment variables are needed, relating to the user you
+	# actually want it to process, can be prepended to the command (bash).
+	if HOME="/home/$SUDO_USER" UID=$SUDO_UID bash "$TMP_FILE"
+	then
+		INFO "Script '$TMP_FILE' execute successfully."
+	else
+		XERR "$LINENO" "Script '$TMP_FILE' exited with a non-zero status."
+	fi
 }
 
 installMongoDB() {
-	sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
+	INFO "\n(6 / 9) Installing community edition of 'mongoDB'..."
 
-	echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse"\
-		| sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
+	apt-key adv --keyserver hkp://keyserver.ubuntu.com:80\
+		--recv 0C49F3730359A14518585931BC711F9BA15703C6
 
-	sudo apt-get update
-	sudo apt-get $APT_OPTS install -y mongodb-org
-	sudo service mongod restart
+	LINK='http://repo.mongodb.org/apt/ubuntu'
+	printf "deb [ %s ] %s %s %s\n" "arch=amd64,arm64"\
+		"$LINK" "xenial/mongodb-org/3.4" "multiverse"\
+		> /etc/apt/sources.list.d/mongodb-org-3.4.list
+
+	apt-get $YES_APT $APT_OPTS install mongodb-org
+	service mongod restart
 }
 
 installrobo3T() {
-	cd $DEB_FOLDER
-	echo "Getting archive..."
-	wget https://download.robomongo.org/1.1.1/linux/robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz
-	echo "Extracting...."
-	tar -xzvf robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz
+	INFO "\n(7 / 9) Installing 'robo3T'..."
 
-	# make dir if not found
-	if [ ! -d /home/$NORMAL_USER/Programs ]
-	then
-		echo "making a directory for other programs"
-		mkdir /home/$NORMAL_USER/Programs
-	fi
+	ARCHIVE='robo3t-1.1.1-linux-x86_64-c93c6b0.tar.gz'
+	PROG_DIR="$HOME/Programs"
 
-	mv robo3t-1.1.1-linux-x86_64-c93c6b0 /home/$NORMAL_USER/Programs/robo3t
-	echo "applying robo mongo fix"
-	# make dir if not found
-	if [ ! -d /home/$NORMAL_USER/Programs/robo3t/backup ]
-	then
-		echo "making a directory for backup"
-		mkdir /home/$NORMAL_USER/Programs/robo3t/backup
-	fi
-	mv /home/$NORMAL_USER/Programs/robo3t/lib/libstdc++* /home/$NORMAL_USER/Programs/robo3t/backup
+	INFO "Getting '$ARCHIVE'..."
+	wget $WGET_OPTS "https://download.robomongo.org/1.1.1/linux/$ARCHIVE"
 
-	echo "making shortcut on desktop"
-	ln -s /home/$NORMAL_USER/Programs/robo3t/bin/robo3t /home/$NORMAL_USER/Desktop/robo3t
+	INFO "Extracting..."
+	tar -C "$DEB_FOLDER" -xzvf "$ARCHIVE"
 
-	chown -R $NORMAL_USER:$NORMAL_USER /home/$NORMAL_USER/Programs/robo3t
-	cd $CURR_DIR
+	mkdir -vp "$PROG_DIR"
+	mv -v "${ARCHIVE%.tar.gz}" "$PROG_DIR/robo3t"
+
+	INFO "Applying Robomongo fix..."
+	mkdir -vp "$PROG_DIR/robo3t/backup"
+	mv -v "$PROG_DIR/robo3t/lib/libstdc++"* "$PROG_DIR/robo3t/backup"
+
+	INFO "Create desktop shortcut..."
+	ln -vs "$PROG_DIR/robo3t/bin/robo3t" "$HOME/Desktop/robo3t"
+
+	chown -vR $SUDO_USER:$SUDO_USER /home/$SUDO_USER/Programs/robo3t
 }
 
 installJava() {
-	sudo apt-get $APT_OPTS install -y default-jre
-	sudo apt-get $APT_OPTS install -y default-jdk
+	INFO "\n(8 / 9) Installing 'java'..."
+
+	apt-get $YES_APT $APT_OPTS install default-jre
+	apt-get $YES_APT $APT_OPTS install default-jdk
 }
 
 installLAMP() {
-	sudo apt-get $APT_OPTS -y install mysql-{server,client,workbench} libmysqld-dev
-	sudo apt-get $APT_OPTS -y install apache2 php libapache2-mod-php php-mcrypt php-mysql phpmyadmin
-	sudo chmod 755 -R /var/www/
-	sudo printf "<?php\nphpinfo();\n?>" > /var/www/html/info.php
-	sudo service apache2 restart
+	INFO "\n(9 / 9) Installing 'lamp'..."
+
+	apt-get $YES_APT $APT_OPTS install mysql-{server,client,workbench} libmysqld-dev
+	apt-get $YES_APT $APT_OPTS install apache2 php libapache2-mod-php php-mcrypt php-mysql phpmyadmin
+	printf "<?php\nphpinfo();\n?>" > /var/www/html/info.php
+	# Above line will be affected by below chmod and chown; is that intended?
+
+	chmod -vR 755 /var/www/
+	chown -vR 0:0 /var/www/ # <-- Is this what you want here? Am no web dev.
+
+	service apache2 restart # <-- No systems running SystemD?
 }
-# End of functions
 
+installDevTools(){
+	INFO "\n(2 / 9) Installing command-line dev-tools..."
 
-# start of script
+	apt-get $YES_APT $APT_OPTS install ${CLI_DEV_PKGS[@]}
+}
+
+installDevTools(){
+	INFO "\n(2 / 9) installing command-line dev-tools..."
+	if ! dpkg -i "$DEB_FOLDER"/*.deb; then
+		ERR "$LINENO" "DPKG detected errors; attempting fix..."
+		if ! apt-get $YES_APT $APT_OPTS install -f
+		then
+			XERR "$LINENO" "Non-zero exit status during fix attempt."
+		fi
+	fi
+}
+
+#---------------------------------------------------------------------------| BEGIN
+
 printBanner
-checkForRoot
-echo "running as root [ ok ]"
 checkForNet
-echo "connected to net [ ok ]"
+aptgetUpdate
 
-echo "(1 / 9) updating cache"
-sudo apt update
-echo "(2 / 9) installing command-line dev-tools"
-sudo apt install git-core git vim tmux htop build-essential libssl-dev curl
-echo "(3 / 9) installing chrome, slack and vscode"
+installDevTools	
+
 doDebs
-sudo dpkg -i $DEB_FOLDER/*.deb
-# cleaning up
-if [[ $? -ne 0 ]]; then
-	echo "[warning] .debs installation met errors, trying a hack to fix this ... "
-    sudo apt install -f -y
-fi
-echo "(4 / 9) installing nodejs"
+
 installNodeJS
-echo "(5 / 9) installing sublime-text"
 installSublimeText
-echo "(6 / 9) installing mongoDB community edition"
 installMongoDB
-echo "(7 / 9) installing robo3T"
 installrobo3T
-echo "(8 / 9) installing java"
 installJava
-echo "(9 / 9) installing lamp"
 installLAMP
 
-echo "all done master :)"
+INFO "All done, Master. :)"
 
 # end of script
