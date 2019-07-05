@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 # Synopsis : Checks if a set of urls give a 200 using curl
+# needs curl, netcat(nc) / wget
+# brew install curl
+# apt install curl
 
 URL_LIST="$HOME/tmp/iiu.url.list"
 
@@ -24,7 +27,9 @@ getFileName() {
 }
 
 checkForNet() {
-	wget -q --tries=10 --timeout=20 --spider https://www.google.co.in/
+  # if wget not present
+  echo -e "GET http://google.com HTTP/1.0\n\n" | nc google.com 80 > /dev/null 2>&1
+	# wget -q --tries=10 --timeout=20 --spider https://www.google.co.in/
 	if [ $? -ne 0 ]; then
 	  printErr "No internet" 1>&2
 		exit 1
